@@ -14,12 +14,32 @@ namespace TrafficAnalyzer
 {
     class Program
     {
+        static string GetSelection(int index) => Selection[index-1];
+        static string[] Selection = new string[]
+        {
+            "Hämta senaste aktiveringsdatum för varje bil",
+            "Räkna bilar efter färg",
+            "Räkna bilar efter färg (enum vs sträng)",
+            "Räkna bilar efter bilmärke"
+        };
         static void Main(string[] args)
         {
+            Console.WriteLine("\n\n  ######################################################");
+            Console.Write("  ### ");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write("Välkommen till Andreas mikroptimeringsverktyg!");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(" ###");
+            Console.WriteLine("  ######################################################\n\n");
+
             var cont = true;
             while (cont)
             {
-                Console.Write("(1): Hämta senaste aktiveringsdatum för varje bil\n(2): Räkna bilar efter färg\n(3): Räkna bilar efter färg (enum vs sträng)\n(4): Räkna bilar efter bilmärke\n(q): Avsluta\n\nDitt val: ");
+                for (int i = 0; i < Selection.Length; i++)
+                {
+                    Console.WriteLine($"({i + 1}) {Selection[i]}");
+                };
+                Console.Write("(q): Avsluta\n\nDitt val: ");
                 var choise = Console.ReadLine();
                 if (choise.Equals("q", StringComparison.OrdinalIgnoreCase))
                     break;
@@ -28,7 +48,7 @@ namespace TrafficAnalyzer
                     Console.WriteLine("Det måste vara ett heltal");
                     continue;
                 }
-                Console.Write("Liten (1), medel (2) eller stor (3) bilpool?: ");
+                Console.Write("Liten (1), medel (2), stor (3) eller extra stor (4) bilpool?: ");
                 var carPoolSizeInput = Console.ReadLine();
                 if (!int.TryParse(carPoolSizeInput, out int carPoolSize))
                 {
@@ -46,6 +66,9 @@ namespace TrafficAnalyzer
                         break;
                     case 3:
                         cars = GetLargePool();
+                        break;
+                    case 4:
+                        cars = GetExtraLargePool();
                         break;
                     default:
                         Console.WriteLine("Det finns inte!");
@@ -78,7 +101,22 @@ namespace TrafficAnalyzer
                 }
                 //var smallPool = CsvHelper.CsvDataReader
                 stopwatch.Stop();
-                Console.WriteLine($"\n\nTime: {stopwatch.ElapsedMilliseconds}\n\n");
+                Console.WriteLine("\n\n##########################");
+                Console.Write("######   ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("Resultat");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine("   ######");
+                Console.WriteLine("##########################\n\n");
+
+                Console.WriteLine($"Testkörning: {GetSelection(selection)}");
+                Console.WriteLine($"Bilpoolsstorlek: {(carPoolSize == 1 ? "liten" : carPoolSize == 2 ? "Medel" : "Stor")}");
+                Console.WriteLine($"Optimering: {(optimizeSearch ? "ja" : "nej")}");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"\nTidsåtgång: {stopwatch.ElapsedMilliseconds} ms\n\n");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write("...");
+                var dummyInput = Console.ReadLine();
             }
         }
 
@@ -95,12 +133,13 @@ namespace TrafficAnalyzer
             }
             else
             {
-                var carMakes = cars.Select(c => c.CarMake).Distinct();
-                foreach (var carMake in carMakes)
-                {
-                    var count = cars.Count(c => c.CarMake.Equals(carMake));
-                    dictionary.Add(carMake, count);
-                }
+                dictionary = cars.GroupBy(c => c.CarMake).ToDictionary(k => k.Key, v => v.Count());
+                //var carMakes = cars.Select(c => c.CarMake).Distinct();
+                //foreach (var carMake in carMakes)
+                //{
+                //    var count = cars.Count(c => c.CarMake.Equals(carMake));
+                //    dictionary.Add(carMake, count);
+                //}
             }
             return dictionary;
         }
@@ -118,12 +157,18 @@ namespace TrafficAnalyzer
             }
             else
             {
-                var colors = cars.Select(c => c.Color).Distinct();
-                foreach (var color in colors)
-                {
-                    var count = cars.Count(c => c.Color.Equals(color));
-                    dictionary.Add(color, count);
-                }
+                dictionary = cars.GroupBy(c => c.Color).ToDictionary(k => k.Key, v => v.Count());
+
+
+
+                //dictionary = cars.Select(c => c.Color).Distinct().ToDictionary(k => k, v => cars.Count(x => x.Color == v));
+
+                //var colors = cars.Select(c => c.Color).Distinct();
+                //foreach (var color in colors)
+                //{
+                //    var count = cars.Count(c => c.Color.Equals(color));
+                //    dictionary.Add(color, count);
+                //}
             }
             return dictionary;
         }
@@ -136,7 +181,7 @@ namespace TrafficAnalyzer
                 var colors = Enum.GetValues(typeof(Color)).Cast<Color>();
                 foreach (var color in colors)
                 {
-                    var count = cars.Count(c => c.Color.Equals(color));
+                    var count = cars.Count(c => c.ColorEnum == color);
                     dictionary.Add(color.ToString(), count);
                 }
             }
@@ -145,7 +190,7 @@ namespace TrafficAnalyzer
                 var colors = cars.Select(c => c.Color).Distinct();
                 foreach (var color in colors)
                 {
-                    var count = cars.Count(c => c.Color.Equals(color));
+                    var count = cars.Count(c => c.Color == color);
                     dictionary.Add(color, count);
                 }
             }
@@ -167,11 +212,8 @@ namespace TrafficAnalyzer
             }
             else
             {
-                foreach (var licensePlate in cars.Select(c => c.LicensePlate).Distinct())
-                {
-                    var duplicateCars = cars.Where(c => c.LicensePlate.Equals(licensePlate, StringComparison.OrdinalIgnoreCase));
-                    output.Add(licensePlate, duplicateCars.Max(c => c.ActivationDate));
-                }
+                output = cars.OrderByDescending(c => c.ActivationDate).Distinct()
+                    .ToDictionary(b => b.LicensePlate, v => v.ActivationDate);
             }
             return output;
         }
@@ -189,6 +231,11 @@ namespace TrafficAnalyzer
         static List<Car> GetMediumPool()
         {
             return GetCars("MediumRegionCarPool.csv");
+        }
+
+        static List<Car> GetExtraLargePool()
+        {
+            return GetCars("ExtraLargeRegionCarPool.csv");
         }
 
         static List<Car> GetCars(string fileName)
